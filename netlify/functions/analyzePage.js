@@ -1,6 +1,10 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-const { Configuration, OpenAIApi } = require('openai');
+const OpenAI = require('openai');
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') {
@@ -19,12 +23,15 @@ exports.handler = async function (event) {
   }
 
   try {
+    // Scrape the page
     const response = await axios.get(url);
     const $ = cheerio.load(response.data);
+
     const title = $('title').text().trim();
     const metaDesc = $('meta[name="description"]').attr('content') || '';
     const headers = [];
     $('h1, h2, h3').each((_, el) => headers.push($(el).text().trim()));
+
     const text = $('body').text().replace(/\s+/g, ' ').trim().slice(0, 3000);
     const payload = {
       url,
@@ -49,8 +56,7 @@ Input:
 ${JSON.stringify(payload, null, 2)}
 `;
 
-    const openai = new OpenAIApi(new Configuration({ apiKey: process.env.OPENAI_API_KEY }));
-    const chat = await openai.createChatCompletion({
+    const chat = await openai.chat.completions.create({
       model: 'gpt-4',
       messages: [
         { role: 'system', content: 'Evaluate how well a webpage is structured for ChatGPT-style summarization and referencing.' },
@@ -60,7 +66,7 @@ ${JSON.stringify(payload, null, 2)}
 
     return {
       statusCode: 200,
-      body: chat.data.choices[0].message.content,
+      body: chat.choices[0].message.content,
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*'
