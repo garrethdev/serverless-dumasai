@@ -1,6 +1,6 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-const fetch = require('node-fetch'); // node-fetch v2 for CommonJS compatibility
+const fetch = require('node-fetch'); // use node-fetch v2 for CommonJS compatibility
 
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') {
@@ -72,4 +72,15 @@ ${JSON.stringify(payload, null, 2)}
     return {
       statusCode: 200,
       body: content,
-      header
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    };
+  } catch (err) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message })
+    };
+  }
+};
