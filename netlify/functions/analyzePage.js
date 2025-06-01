@@ -1,6 +1,6 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-const fetch = require('node-fetch'); // required for Netlify
+const fetch = require('node-fetch'); // node-fetch v2 for CommonJS compatibility
 
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') {
@@ -72,15 +72,4 @@ ${JSON.stringify(payload, null, 2)}
     return {
       statusCode: 200,
       body: content,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    };
-  } catch (err) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message })
-    };
-  }
-};
+      header
