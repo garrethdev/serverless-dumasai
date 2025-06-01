@@ -1,19 +1,36 @@
-const axios = require('axios');
 const cheerio = require('cheerio');
-const fetch = require('node-fetch'); // use node-fetch v2 for CommonJS compatibility
+const axios = require('axios');
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
 exports.handler = async function (event) {
+  const CORS_HEADERS = {
+    'Access-Control-Allow-Origin': 'https://dumasai.co',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json',
+  };
+
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: CORS_HEADERS,
+      body: '',
+    };
+  }
+
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
+      headers: CORS_HEADERS,
       body: JSON.stringify({ error: 'Only POST method allowed' }),
     };
   }
 
-  const { url } = JSON.parse(event.body);
+  const { url } = JSON.parse(event.body || '{}');
   if (!url) {
     return {
       statusCode: 400,
+      headers: CORS_HEADERS,
       body: JSON.stringify({ error: 'Missing URL in request body' }),
     };
   }
@@ -37,7 +54,7 @@ exports.handler = async function (event) {
       header_tags: headers,
       has_structured_data: $('script[type="application/ld+json"]').length > 0,
       contains_faq: text.toLowerCase().includes('faq'),
-      robots_txt_allowed: true
+      robots_txt_allowed: true,
     };
 
     const prompt = `
@@ -51,14 +68,14 @@ Input:
 ${JSON.stringify(payload, null, 2)}
 `;
 
-    const chat = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
+    const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
       headers: {
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json"
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: "openai/gpt-4",
+        model: 'openai/gpt-4',
         messages: [
           { role: 'system', content: 'Evaluate how well a webpage is structured for ChatGPT-style summarization and referencing.' },
           { role: 'user', content: prompt }
@@ -66,21 +83,19 @@ ${JSON.stringify(payload, null, 2)}
       })
     });
 
-    const chatData = await chat.json();
-    const content = chatData.choices?.[0]?.message?.content || "No response from model";
+    const json = await openRouterResponse.json();
+    const content = json.choices?.[0]?.message?.content || 'Error: No content returned from model.';
 
     return {
       statusCode: 200,
+      headers: CORS_HEADERS,
       body: content,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
     };
   } catch (err) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: err.message })
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ error: err.message }),
     };
   }
 };
